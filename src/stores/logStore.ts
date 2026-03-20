@@ -1,6 +1,6 @@
 import { createStore } from 'solid-js/store'
 import { createMemo } from 'solid-js'
-import type { LogFile, LogEntry, LogFilter, ApacheStats, PhpStats, ApacheLogEntry, PhpErrorEntry } from '@/types/log'
+import type { LogFile, LogEntry, LogFilter, ApacheStats, PhpStats, ApacheLogEntry, PhpErrorEntry, LogPair } from '@/types/log'
 import { DEFAULT_FILTER } from '@/types/log'
 import { parseApacheLog, detectApacheLog, parseApacheLine } from '@/parsers/apache'
 import { parsePhpLog, detectPhpLog, parsePhpLine } from '@/parsers/php'
@@ -10,6 +10,8 @@ import dayjs from 'dayjs'
 interface LogState {
   files: LogFile[]
   activeFileId: string | null
+  pairs: LogPair[]
+  activePairId: string | null
   filter: LogFilter
   loading: boolean
   error: string | null
@@ -18,6 +20,8 @@ interface LogState {
 const [state, setState] = createStore<LogState>({
   files: [],
   activeFileId: null,
+  pairs: [],
+  activePairId: null,
   filter: { ...DEFAULT_FILTER },
   loading: false,
   error: null
@@ -32,7 +36,7 @@ function detectLogType(content: string): LogFile['logType'] {
 }
 
 function makeFileId(filePath: string): string {
-  return btoa(encodeURIComponent(filePath)).slice(0, 32)
+  return btoa(encodeURIComponent(filePath))
 }
 
 export async function addLogFile(filePath: string): Promise<void> {
@@ -307,5 +311,68 @@ export const phpStats = createMemo((): PhpStats | null => {
     recentErrors: entries.slice(-20).reverse()
   }
 })
+
+// ===== ペア管理 =====
+
+let pairCounter = 0
+
+export function addPair(apacheFileId: string, phpFileId: string): void {
+  pairCounter += 1
+  const apacheFile = state.files.find((f) => f.id === apacheFileId)
+  const phpFile = state.files.find((f) => f.id === phpFileId)
+  const name = `${apacheFile?.name ?? 'apache'} + ${phpFile?.name ?? 'php'}`
+  const id = `pair-${pairCounter}`
+  setState('pairs', (pairs) => [...pairs, { id, name, apacheFileId, phpFileId }])
+  if (!state.activePairId) setState('activePairId', id)
+}
+
+export function removePair(id: string): void {
+  setState('pairs', (pairs) => pairs.filter((p) => p.id !== id))
+  if (state.activePairId === id) {
+    setState('activePairId', state.pairs[0]?.id ?? null)
+  }
+}
+
+export function setActivePair(id: string): void {
+  setState('activePairId', id)
+}
+
+// ===== 相関セレクター =====
+
+export const activePair = createMemo(() =>
+  state.pairs.find((p) => p.id === state.activePairId) ?? null
+)
+
+/** activePair に対応する Apache と PHP のエントリを取得 */
+export const correlatedFiles = createMemo(() => {
+  const pair = activePair()
+  if (!pair) return null
+  const apacheFile = state.files.find((f) => f.id === pair.apacheFileId)
+  const phpFile = state.files.find((f) => f.id === pair.phpFileId)
+  if (!apacheFile || !phpFile) return null
+  return {
+    apacheEntries: apacheFile.entries.filter((e): e is ApacheLogEntry => e.type === 'apache'),
+    phpEntries: phpFile.entries.filter((e): e is PhpErrorEntry => e.type === 'php')
+  }
+})
+
+/**
+ * PHPエラーに対して、前後 windowSec 秒のApacheログを返す。
+ * 時刻の近い順に並べる（IPハイライトはUIコンポーネント側で行う）。
+ */
+export function findRelatedApacheEntries(
+  phpEntry: PhpErrorEntry,
+  windowSec: number
+): ApacheLogEntry[] {
+  const files = correlatedFiles()
+  if (!files) return []
+
+  const ts = phpEntry.timestamp.getTime()
+  const windowMs = windowSec * 1000
+
+  return files.apacheEntries
+    .filter((a) => Math.abs(a.timestamp.getTime() - ts) <= windowMs)
+    .sort((a, b) => Math.abs(a.timestamp.getTime() - ts) - Math.abs(b.timestamp.getTime() - ts))
+}
 
 export { state as logState }

@@ -2,9 +2,10 @@ import { Component, createSignal, onCleanup, onMount, Show } from 'solid-js'
 import FileManager from '@/components/FileManager/FileManager'
 import LogViewer from '@/components/LogViewer/LogViewer'
 import Dashboard from '@/components/Dashboard/Dashboard'
+import CorrelatedView from '@/components/CorrelatedView/CorrelatedView'
 import { initWatcherListener } from '@/stores/logStore'
 
-type Tab = 'viewer' | 'dashboard'
+type Tab = 'viewer' | 'dashboard' | 'correlated'
 
 const App: Component = () => {
   const [tab, setTab] = createSignal<Tab>('viewer')
@@ -34,6 +35,9 @@ const App: Component = () => {
           <TabButton active={tab() === 'dashboard'} onClick={() => setTab('dashboard')}>
             📊 ダッシュボード
           </TabButton>
+          <TabButton active={tab() === 'correlated'} onClick={() => setTab('correlated')}>
+            🔗 相関分析
+          </TabButton>
         </div>
 
         {/* コンテンツ */}
@@ -43,6 +47,9 @@ const App: Component = () => {
           </Show>
           <Show when={tab() === 'dashboard'}>
             <Dashboard />
+          </Show>
+          <Show when={tab() === 'correlated'}>
+            <CorrelatedView />
           </Show>
         </div>
       </div>

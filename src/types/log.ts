@@ -69,6 +69,14 @@ export interface PhpStats {
   recentErrors: PhpErrorEntry[]
 }
 
+// ===== ファイルペア =====
+export interface LogPair {
+  id: string
+  name: string           // 表示名（例: "production-2024-03"）
+  apacheFileId: string
+  phpFileId: string
+}
+
 // ===== フィルタ =====
 export interface LogFilter {
   keyword: string
