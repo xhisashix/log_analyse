@@ -136,3 +136,49 @@ import MyComponent from '@/components/MyComponent/MyComponent';
 // 3. サードパーティ
 import dayjs from 'dayjs';
 ```
+
+## Gitコミット規約
+
+### コミットメッセージ形式
+
+```
+<type>: <概要（日本語）>
+
+<本文（任意）>
+
+<トレーラー>
+```
+
+### typeの種類
+
+| type | 用途 |
+|------|------|
+| `feat` | 新機能追加 |
+| `fix` | バグ修正 |
+| `refactor` | 機能変更を伴わないリファクタリング |
+| `style` | コードスタイル・フォーマット変更（ロジック変更なし） |
+| `docs` | ドキュメント・コメントの変更 |
+| `test` | テストの追加・修正 |
+| `chore` | ビルド設定・依存パッケージなど雑務 |
+
+### ルール
+
+- **概要は日本語で記述**（50文字以内を目安）
+- 概要は体言止めまたは動詞の連用形で記述（例: `ログフィルター機能を追加`）
+- 本文が必要な場合は「なぜ」を中心に記述
+- GitHub Copilot が作成したコミットには必ず以下のトレーラーを付与:
+
+```
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+```
+
+### コミットメッセージ例
+
+```
+feat: Apacheログのステータスコード別集計を追加
+
+集計結果をチャートで可視化するため、
+ステータスコードごとのリクエスト数を集計する機能を実装。
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+```
