@@ -1,0 +1,73 @@
+{
+  "name": "log-analyser",
+  "version": "0.1.0",
+  "description": "Apache / PHP ログ解析デスクトップアプリ",
+  "main": "out/main/main.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package:win": "npm run build && electron-builder --win",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package": "npm run build && electron-builder"
+  },
+  "keywords": [
+    "log",
+    "analyser",
+    "electron",
+    "solidjs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "autoprefixer": "^10.4.0",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.0.0",
+    "electron-vite": "^3.0.0",
+    "postcss": "^8.5.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vite-plugin-solid": "^2.11.0"
+  },
+  "dependencies": {
+    "@solid-primitives/refs": "^1.1.3",
+    "@solidjs/router": "^0.15.0",
+    "@tanstack/solid-virtual": "^3.0.0",
+    "chart.js": "^4.4.0",
+    "chokidar": "^4.0.0",
+    "dayjs": "^1.11.0",
+    "solid-chartjs": "^1.3.11",
+    "solid-js": "^1.9.0"
+  },
+  "build": {
+    "appId": "com.loganalyser.app",
+    "productName": "Log Analyser",
+    "files": ["out/**/*"],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "resources/icon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "resources/icon.icns",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  }
+}
