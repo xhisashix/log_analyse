@@ -13,12 +13,14 @@ import {
 } from '@/stores/logStore'
 import { settings, updateSettings } from '@/stores/settingsStore'
 import type { ApacheLogEntry, PhpErrorEntry, LogEntry } from '@/types/log'
-import dayjs from 'dayjs'
+import { formatTimestamp } from '@/utils/formatTime'
 
 /** ISO 文字列 → datetime-local input 用のローカル時刻文字列 (YYYY-MM-DDTHH:mm) */
 function isoToLocal(iso: string): string {
   if (!iso) return ''
-  return dayjs(iso).format('YYYY-MM-DDTHH:mm')
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 // ===== フィルタバー =====
@@ -131,7 +133,7 @@ function phpLevelColor(level: string): string {
 const ApacheRow: Component<{ entry: ApacheLogEntry }> = (props) => (
   <div class="flex items-baseline gap-2 px-3 py-0.5 hover:bg-gray-800 font-mono text-xs border-b border-gray-800">
     <span class="text-gray-500 w-36 shrink-0">
-      {dayjs(props.entry.timestamp).format('MM/DD HH:mm:ss')}
+      {formatTimestamp(props.entry.timestamp, 'MM/DD HH:mm:ss')}
     </span>
     <span class="text-cyan-400 w-28 shrink-0">{props.entry.ip}</span>
     <span class={`w-10 shrink-0 ${statusColor(props.entry.status)}`}>{props.entry.status}</span>
@@ -146,7 +148,7 @@ const ApacheRow: Component<{ entry: ApacheLogEntry }> = (props) => (
 const PhpRow: Component<{ entry: PhpErrorEntry }> = (props) => (
   <div class="flex items-start gap-2 px-3 py-1 hover:bg-gray-800 font-mono text-xs border-b border-gray-800">
     <span class="text-gray-500 w-36 shrink-0">
-      {dayjs(props.entry.timestamp).format('MM/DD HH:mm:ss')}
+      {formatTimestamp(props.entry.timestamp, 'MM/DD HH:mm:ss')}
     </span>
     <span class={`w-24 shrink-0 font-semibold ${phpLevelColor(props.entry.level)}`}>
       {props.entry.level}
