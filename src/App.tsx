@@ -3,8 +3,8 @@ import FileManager from '@/components/FileManager/FileManager'
 import LogViewer from '@/components/LogViewer/LogViewer'
 import Dashboard from '@/components/Dashboard/Dashboard'
 import CorrelatedView from '@/components/CorrelatedView/CorrelatedView'
-import { initWatcherListener } from '@/stores/logStore'
 import { settings, updateSettings } from '@/stores/settingsStore'
+import { initWatcherListener, loadPersistedFiles } from '@/stores/logStore'
 
 type Tab = 'viewer' | 'dashboard' | 'correlated'
 
@@ -12,8 +12,9 @@ const App: Component = () => {
   const [tab, setTab] = createSignal<Tab>('viewer')
   let cleanupWatcher: (() => void) | undefined
 
-  onMount(() => {
+  onMount(async () => {
     cleanupWatcher = initWatcherListener()
+    await loadPersistedFiles()
   })
 
   onCleanup(() => {
