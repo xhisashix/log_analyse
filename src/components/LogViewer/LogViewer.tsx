@@ -12,7 +12,7 @@ import {
   logState
 } from '@/stores/logStore'
 import { settings, updateSettings } from '@/stores/settingsStore'
-import type { ApacheLogEntry, PhpErrorEntry, DrupalWatchdogEntry, LogEntry } from '@/types/log'
+import type { ApacheLogEntry, PhpErrorEntry, PhpErrorLevel, DrupalWatchdogEntry, DrupalWatchdogSeverity, LogEntry } from '@/types/log'
 import { formatTimestamp } from '@/utils/formatTime'
 
 /** ISO 文字列 → datetime-local input 用のローカル時刻文字列 (YYYY-MM-DDTHH:mm) */
@@ -70,7 +70,7 @@ const FilterBar: Component = () => {
         {/* PHP エラーレベルフィルタ */}
         <select
           value={logState.filter.levels[0] ?? ''}
-          onChange={(e) => setFilter({ levels: e.currentTarget.value ? [e.currentTarget.value as any] : [] })}
+          onChange={(e) => setFilter({ levels: e.currentTarget.value ? [e.currentTarget.value as PhpErrorLevel] : [] })}
           class="bg-gray-700 text-gray-100 text-xs px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500"
         >
           <option value="">レベル: 全て</option>
@@ -84,7 +84,7 @@ const FilterBar: Component = () => {
         {/* Drupal Watchdog 重要度フィルタ */}
         <select
           value={logState.filter.drupalSeverities[0] ?? ''}
-          onChange={(e) => setFilter({ drupalSeverities: e.currentTarget.value ? [e.currentTarget.value as any] : [] })}
+          onChange={(e) => setFilter({ drupalSeverities: e.currentTarget.value ? [e.currentTarget.value as DrupalWatchdogSeverity] : [] })}
           class="bg-gray-700 text-gray-100 text-xs px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500"
         >
           <option value="">重要度: 全て</option>

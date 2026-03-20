@@ -22,8 +22,17 @@ function normalizeSeverity(raw: string): DrupalWatchdogSeverity {
 }
 
 // パイプ区切りで先頭が RFC 2822 日付形式か判定する正規表現
-// 曜日,日 月 年 時:分:秒 タイムゾーン の形式を確認
-const DRUPAL_DETECT_REGEX = /^\w{3},\s+\d{1,2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4}\|/
+// パターン: "曜日(3文字), 日(1-2桁) 月(3文字) 年(4桁) 時:分:秒 ±タイムゾーン(4桁)|"
+// 例: "Mon, 24 Oct 2016 15:27:15 +0000|..."
+const WEEKDAY = '\\w{3}'
+const DAY = '\\d{1,2}'
+const MONTH = '\\w{3}'
+const YEAR = '\\d{4}'
+const TIME = '\\d{2}:\\d{2}:\\d{2}'
+const TIMEZONE = '[+-]\\d{4}'
+const DRUPAL_DETECT_REGEX = new RegExp(
+  `^${WEEKDAY},\\s+${DAY}\\s+${MONTH}\\s+${YEAR}\\s+${TIME}\\s+${TIMEZONE}\\|`
+)
 
 export function parseDrupalWatchdogLine(raw: string): DrupalWatchdogEntry | null {
   const trimmed = raw.trim()
