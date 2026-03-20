@@ -65,6 +65,8 @@ const FileManager: Component = () => {
                           ? 'bg-green-800 text-green-200'
                           : file.logType === 'php'
                           ? 'bg-purple-800 text-purple-200'
+                          : file.logType === 'drupal-watchdog'
+                          ? 'bg-amber-800 text-amber-200'
                           : 'bg-gray-700 text-gray-300'
                       }`}
                     >

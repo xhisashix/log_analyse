@@ -1,7 +1,7 @@
 import { Component, For } from 'solid-js'
 import { Chart, registerables } from 'chart.js'
 import { Line, Pie, Doughnut } from 'solid-chartjs'
-import { apacheStats, phpStats, activeFile } from '@/stores/logStore'
+import { apacheStats, phpStats, drupalWatchdogStats, activeFile } from '@/stores/logStore'
 import { Show } from 'solid-js'
 import { formatTimestamp } from '@/utils/formatTime'
 
@@ -312,6 +312,150 @@ const PhpDashboard: Component = () => {
   )
 }
 
+// ===== Drupal Watchdog ダッシュボード =====
+const DrupalWatchdogDashboard: Component = () => {
+  const stats = drupalWatchdogStats
+
+  const severityChartData = () => {
+    const s = stats()
+    if (!s) return null
+    const colorMap: Record<string, string> = {
+      'emergency': 'rgba(220,38,38,0.9)',
+      'alert': 'rgba(239,68,68,0.8)',
+      'critical': 'rgba(248,113,113,0.8)',
+      'error': 'rgba(251,146,60,0.8)',
+      'warning': 'rgba(245,158,11,0.8)',
+      'notice': 'rgba(59,130,246,0.8)',
+      'info': 'rgba(74,222,128,0.8)',
+      'debug': 'rgba(107,114,128,0.8)',
+      'unknown': 'rgba(75,85,99,0.8)'
+    }
+    const labels = Object.keys(s.severityCounts)
+    return {
+      labels,
+      datasets: [{
+        data: Object.values(s.severityCounts),
+        backgroundColor: labels.map((l) => colorMap[l] ?? 'rgba(107,114,128,0.8)'),
+        borderWidth: 0
+      }]
+    }
+  }
+
+  const entriesChartData = () => {
+    const s = stats()
+    if (!s) return null
+    return {
+      labels: s.entriesPerHour.map((r) => r.hour.slice(5, 16)),
+      datasets: [{
+        label: 'ログ件数',
+        data: s.entriesPerHour.map((r) => r.count),
+        borderColor: 'rgba(139, 92, 246, 0.8)',
+        backgroundColor: 'rgba(139, 92, 246, 0.2)',
+        fill: true,
+        tension: 0.3
+      }]
+    }
+  }
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#9ca3af', font: { size: 11 } } } },
+    scales: {
+      x: { ticks: { color: '#6b7280', font: { size: 10 } }, grid: { color: 'rgba(75,85,99,0.3)' } },
+      y: { ticks: { color: '#6b7280', font: { size: 10 } }, grid: { color: 'rgba(75,85,99,0.3)' } }
+    }
+  }
+
+  const pieOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'right' as const, labels: { color: '#9ca3af', font: { size: 11 } } } }
+  }
+
+  return (
+    <Show when={stats()} fallback={<div class="p-8 text-gray-500 text-center">データがありません</div>}>
+      {(s) => (
+        <div class="grid grid-cols-2 gap-4 p-4 overflow-auto h-full">
+          {/* サマリー */}
+          <div class="col-span-2 grid grid-cols-4 gap-3">
+            <StatCard label="総ログ件数" value={s().totalEntries.toLocaleString()} color="blue" />
+            <StatCard
+              label="Emergency / Alert"
+              value={((s().severityCounts['emergency'] ?? 0) + (s().severityCounts['alert'] ?? 0)).toLocaleString()}
+              color="red"
+            />
+            <StatCard
+              label="Error / Critical"
+              value={((s().severityCounts['error'] ?? 0) + (s().severityCounts['critical'] ?? 0)).toLocaleString()}
+              color="orange"
+            />
+            <StatCard
+              label="Warning"
+              value={(s().severityCounts['warning'] ?? 0).toLocaleString()}
+              color="orange"
+            />
+          </div>
+
+          {/* ログ件数推移 */}
+          <div class="col-span-2 bg-gray-800 rounded-lg p-3">
+            <h3 class="text-xs text-gray-400 mb-2 font-medium">ログ件数推移（時間別）</h3>
+            <div style={{ height: '200px' }}>
+              <Show when={entriesChartData()}>
+                {(data) => <Line data={data()} options={chartOptions} width={undefined} height={undefined} />}
+              </Show>
+            </div>
+          </div>
+
+          {/* 重要度分布 */}
+          <div class="bg-gray-800 rounded-lg p-3">
+            <h3 class="text-xs text-gray-400 mb-2 font-medium">重要度分布</h3>
+            <div style={{ height: '180px' }}>
+              <Show when={severityChartData()}>
+                {(data) => <Pie data={data()} options={pieOptions} width={undefined} height={undefined} />}
+              </Show>
+            </div>
+          </div>
+
+          {/* 上位ログタイプ */}
+          <div class="bg-gray-800 rounded-lg p-3">
+            <h3 class="text-xs text-gray-400 mb-2 font-medium">ログタイプ Top10</h3>
+            <div class="space-y-1">
+              <For each={s().topTypes.slice(0, 10)}>
+                {({ watchdogType, count }) => (
+                  <div class="flex justify-between text-xs gap-2">
+                    <span class="text-purple-300 font-mono truncate flex-1" title={watchdogType}>
+                      {watchdogType}
+                    </span>
+                    <span class="text-gray-400 shrink-0">{count.toLocaleString()}</span>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+
+          {/* 直近のログ */}
+          <div class="col-span-2 bg-gray-800 rounded-lg p-3">
+            <h3 class="text-xs text-gray-400 mb-2 font-medium">直近のログ</h3>
+            <div class="space-y-1 max-h-40 overflow-auto">
+              <For each={s().recentEntries}>
+                {(e) => (
+                  <div class="text-xs font-mono flex gap-2">
+                    <span class="text-gray-500 shrink-0">{e.timestamp.toLocaleTimeString()}</span>
+                    <span class="text-orange-400 shrink-0">{e.severity}</span>
+                    <span class="text-purple-300 shrink-0">{e.watchdogType}</span>
+                    <span class="text-gray-300 truncate">{e.message}</span>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+        </div>
+      )}
+    </Show>
+  )
+}
+
 // ===== 共有コンポーネント =====
 const colorMap: Record<string, string> = {
   blue: 'border-blue-500',
@@ -354,6 +498,9 @@ const Dashboard: Component = () => {
       </Show>
       <Show when={file()?.logType === 'php'}>
         <PhpDashboard />
+      </Show>
+      <Show when={file()?.logType === 'drupal-watchdog'}>
+        <DrupalWatchdogDashboard />
       </Show>
       <Show when={!file() || file()?.logType === 'unknown'}>
         <div class="flex items-center justify-center h-full text-gray-600 text-sm">

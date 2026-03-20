@@ -35,14 +35,42 @@ export interface PhpErrorEntry {
   line: number
 }
 
-export type LogEntry = ApacheLogEntry | PhpErrorEntry
+// ===== Drupal Watchdog ログ（Acquia Cloud 形式） =====
+export type DrupalWatchdogSeverity =
+  | 'emergency'
+  | 'alert'
+  | 'critical'
+  | 'error'
+  | 'warning'
+  | 'notice'
+  | 'info'
+  | 'debug'
+  | 'unknown'
+
+export interface DrupalWatchdogEntry {
+  type: 'drupal-watchdog'
+  raw: string
+  timestamp: Date
+  siteName: string
+  ip: string
+  requestUri: string
+  referer: string
+  uid: number
+  link: string
+  message: string
+  severity: DrupalWatchdogSeverity
+  watchdogType: string
+  requestId: string
+}
+
+export type LogEntry = ApacheLogEntry | PhpErrorEntry | DrupalWatchdogEntry
 
 // ===== ファイル管理 =====
 export interface LogFile {
   id: string            // ユニーク ID (ファイルパスベース)
   path: string
   name: string
-  logType: 'apache' | 'php' | 'unknown'
+  logType: 'apache' | 'php' | 'drupal-watchdog' | 'unknown'
   size: number
   lastModified: number
   watching: boolean
@@ -69,6 +97,15 @@ export interface PhpStats {
   recentErrors: PhpErrorEntry[]
 }
 
+export interface DrupalWatchdogStats {
+  totalEntries: number
+  severityCounts: Record<string, number>
+  typeCounts: Record<string, number>
+  topTypes: Array<{ watchdogType: string; count: number }>
+  entriesPerHour: Array<{ hour: string; count: number }>
+  recentEntries: DrupalWatchdogEntry[]
+}
+
 // ===== ファイルペア =====
 export interface LogPair {
   id: string
@@ -82,6 +119,8 @@ export interface LogFilter {
   keyword: string
   statusCodes: string[]    // Apache: "200", "4xx", "5xx" など
   levels: PhpErrorLevel[]  // PHP: エラーレベル
+  drupalSeverities: DrupalWatchdogSeverity[]  // Drupal Watchdog: 重要度
+  drupalType: string       // Drupal Watchdog: ログタイプ
   dateFrom: string         // ISO 形式
   dateTo: string
   method: string           // Apache: GET/POST など
@@ -91,6 +130,8 @@ export const DEFAULT_FILTER: LogFilter = {
   keyword: '',
   statusCodes: [],
   levels: [],
+  drupalSeverities: [],
+  drupalType: '',
   dateFrom: '',
   dateTo: '',
   method: ''
