@@ -4,6 +4,7 @@ import LogViewer from '@/components/LogViewer/LogViewer'
 import Dashboard from '@/components/Dashboard/Dashboard'
 import CorrelatedView from '@/components/CorrelatedView/CorrelatedView'
 import { initWatcherListener } from '@/stores/logStore'
+import { settings, updateSettings } from '@/stores/settingsStore'
 
 type Tab = 'viewer' | 'dashboard' | 'correlated'
 
@@ -38,6 +39,21 @@ const App: Component = () => {
           <TabButton active={tab() === 'correlated'} onClick={() => setTab('correlated')}>
             🔗 相関分析
           </TabButton>
+          {/* タイムゾーン切り替えトグル */}
+          <div class="ml-auto flex items-center gap-1.5 pr-2">
+            <span class="text-[10px] text-gray-500">時刻:</span>
+            <button
+              onClick={() => updateSettings({ timezone: settings.timezone === 'UTC' ? 'JST' : 'UTC' })}
+              class={`text-xs px-2 py-0.5 rounded font-mono transition-colors ${
+                settings.timezone === 'JST'
+                  ? 'bg-blue-600 text-white hover:bg-blue-500'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+              title={settings.timezone === 'UTC' ? 'クリックでJST（日本時間）に切り替え' : 'クリックでUTCに切り替え'}
+            >
+              {settings.timezone}
+            </button>
+          </div>
         </div>
 
         {/* コンテンツ */}

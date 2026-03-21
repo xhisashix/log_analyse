@@ -3,6 +3,7 @@ import { Chart, registerables } from 'chart.js'
 import { Line, Pie, Doughnut } from 'solid-chartjs'
 import { apacheStats, phpStats, activeFile } from '@/stores/logStore'
 import { Show } from 'solid-js'
+import { formatTimestamp } from '@/utils/formatTime'
 
 Chart.register(...registerables)
 
@@ -297,7 +298,7 @@ const PhpDashboard: Component = () => {
               <For each={s().recentErrors}>
                 {(e) => (
                   <div class="text-xs font-mono flex gap-2">
-                    <span class="text-gray-500 shrink-0">{e.timestamp.toLocaleTimeString()}</span>
+                    <span class="text-gray-500 shrink-0">{formatTimestamp(e.timestamp, 'HH:mm:ss')}</span>
                     <span class="text-red-400 shrink-0">{e.level}</span>
                     <span class="text-gray-300 truncate">{e.message}</span>
                   </div>

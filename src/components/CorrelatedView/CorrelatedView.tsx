@@ -1,7 +1,7 @@
 import { Component, createMemo, createSignal, For, Show } from 'solid-js'
 import { logState, addPair, removePair, setActivePair, activePair, correlatedFiles, findRelatedApacheEntries } from '@/stores/logStore'
 import type { PhpErrorEntry, ApacheLogEntry } from '@/types/log'
-import dayjs from 'dayjs'
+import { formatTimestamp } from '@/utils/formatTime'
 
 // ===== 時間窓の選択肢 =====
 const WINDOW_OPTIONS: Array<{ label: string; value: number }> = [
@@ -154,7 +154,7 @@ const PhpErrorRow: Component<{
           {props.entry.level}
         </span>
         <span class="text-[10px] text-gray-500 tabular-nums">
-          {dayjs(props.entry.timestamp).format('MM/DD HH:mm:ss')}
+          {formatTimestamp(props.entry.timestamp, 'MM/DD HH:mm:ss')}
         </span>
       </div>
       <div class="text-xs text-gray-200 truncate" title={props.entry.message}>
@@ -207,7 +207,7 @@ const ApacheRow: Component<{
       </div>
       {/* 時刻 */}
       <div class="text-[10px] text-gray-500">
-        {dayjs(props.entry.timestamp).format('MM/DD HH:mm:ss')}
+        {formatTimestamp(props.entry.timestamp, 'MM/DD HH:mm:ss')}
       </div>
     </div>
   )
@@ -361,7 +361,7 @@ const CorrelatedView: Component = () => {
                         {entry().level}
                       </span>
                       <span class="text-gray-400 tabular-nums">
-                        {dayjs(entry().timestamp).format('YYYY/MM/DD HH:mm:ss')}
+                        {formatTimestamp(entry().timestamp, 'YYYY/MM/DD HH:mm:ss')}
                       </span>
                     </div>
                     <div class="text-gray-300 mt-1 truncate" title={entry().message}>
