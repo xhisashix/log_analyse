@@ -12,7 +12,7 @@ import {
   logState
 } from '@/stores/logStore'
 import { settings, updateSettings } from '@/stores/settingsStore'
-import type { ApacheLogEntry, PhpErrorEntry, LogEntry } from '@/types/log'
+import type { ApacheLogEntry, PhpErrorEntry, PhpErrorLevel, DrupalWatchdogEntry, DrupalWatchdogSeverity, LogEntry } from '@/types/log'
 import { formatTimestamp } from '@/utils/formatTime'
 
 /** ISO 文字列 → datetime-local input 用のローカル時刻文字列 (YYYY-MM-DDTHH:mm) */
@@ -70,7 +70,7 @@ const FilterBar: Component = () => {
         {/* PHP エラーレベルフィルタ */}
         <select
           value={logState.filter.levels[0] ?? ''}
-          onChange={(e) => setFilter({ levels: e.currentTarget.value ? [e.currentTarget.value as any] : [] })}
+          onChange={(e) => setFilter({ levels: e.currentTarget.value ? [e.currentTarget.value as PhpErrorLevel] : [] })}
           class="bg-gray-700 text-gray-100 text-xs px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500"
         >
           <option value="">レベル: 全て</option>
@@ -78,6 +78,29 @@ const FilterBar: Component = () => {
             <option value={l}>{l}</option>
           ))}
         </select>
+      </Show>
+
+      <Show when={activeFile()?.logType === 'drupal-watchdog'}>
+        {/* Drupal Watchdog 重要度フィルタ */}
+        <select
+          value={logState.filter.drupalSeverities[0] ?? ''}
+          onChange={(e) => setFilter({ drupalSeverities: e.currentTarget.value ? [e.currentTarget.value as DrupalWatchdogSeverity] : [] })}
+          class="bg-gray-700 text-gray-100 text-xs px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+        >
+          <option value="">重要度: 全て</option>
+          {['emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug'].map((s) => (
+            <option value={s}>{s}</option>
+          ))}
+        </select>
+
+        {/* Drupal Watchdog ログタイプフィルタ */}
+        <input
+          type="text"
+          placeholder="タイプで絞り込み..."
+          value={logState.filter.drupalType}
+          onInput={(e) => setFilter({ drupalType: e.currentTarget.value })}
+          class="bg-gray-700 text-gray-100 text-xs px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500 w-36"
+        />
       </Show>
 
       {/* 日付範囲フィルタ
@@ -162,6 +185,36 @@ const PhpRow: Component<{ entry: PhpErrorEntry }> = (props) => (
   </div>
 )
 
+function drupalSeverityColor(severity: string): string {
+  if (severity === 'emergency' || severity === 'alert') return 'text-red-500'
+  if (severity === 'critical' || severity === 'error') return 'text-red-400'
+  if (severity === 'warning') return 'text-yellow-400'
+  if (severity === 'notice') return 'text-blue-400'
+  if (severity === 'info') return 'text-green-400'
+  if (severity === 'debug') return 'text-gray-400'
+  return 'text-gray-400'
+}
+
+const DrupalWatchdogRow: Component<{ entry: DrupalWatchdogEntry }> = (props) => (
+  <div class="flex items-start gap-2 px-3 py-1 hover:bg-gray-800 font-mono text-xs border-b border-gray-800">
+    <span class="text-gray-500 w-36 shrink-0">
+      {dayjs(props.entry.timestamp).format('MM/DD HH:mm:ss')}
+    </span>
+    <span class={`w-20 shrink-0 font-semibold ${drupalSeverityColor(props.entry.severity)}`}>
+      {props.entry.severity}
+    </span>
+    <span class="text-purple-300 w-28 shrink-0 truncate" title={props.entry.watchdogType}>
+      {props.entry.watchdogType}
+    </span>
+    <div class="flex-1 min-w-0">
+      <div class="text-gray-200 truncate" title={props.entry.message}>{props.entry.message}</div>
+      <div class="text-gray-500 text-[10px] truncate">
+        {props.entry.ip ? `${props.entry.ip} ` : ''}{props.entry.requestUri}
+      </div>
+    </div>
+  </div>
+)
+
 // ===== メインビュー（仮想スクロール）=====
 const LogViewer: Component = () => {
   let scrollRef: HTMLDivElement | undefined
@@ -197,6 +250,15 @@ const LogViewer: Component = () => {
           <span class="w-36">Time</span>
           <span class="w-24">Level</span>
           <span class="flex-1">Message / File</span>
+        </div>
+      </Show>
+
+      <Show when={activeFile()?.logType === 'drupal-watchdog'}>
+        <div class="flex gap-2 px-3 py-1 border-b border-gray-700 text-[10px] text-gray-500 font-mono uppercase tracking-wide">
+          <span class="w-36">Time</span>
+          <span class="w-20">Severity</span>
+          <span class="w-28">Type</span>
+          <span class="flex-1">Message / URI</span>
         </div>
       </Show>
 
@@ -278,6 +340,9 @@ const LogViewer: Component = () => {
                     </Show>
                     <Show when={entry()?.type === 'php'}>
                       <PhpRow entry={entry() as PhpErrorEntry} />
+                    </Show>
+                    <Show when={entry()?.type === 'drupal-watchdog'}>
+                      <DrupalWatchdogRow entry={entry() as DrupalWatchdogEntry} />
                     </Show>
                   </div>
                 )

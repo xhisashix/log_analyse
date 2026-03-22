@@ -1,9 +1,10 @@
 import { createStore } from 'solid-js/store'
 import { createMemo } from 'solid-js'
-import type { LogFile, LogEntry, LogFilter, ApacheStats, PhpStats, ApacheLogEntry, PhpErrorEntry, LogPair } from '@/types/log'
+import type { LogFile, LogEntry, LogFilter, ApacheStats, PhpStats, ApacheLogEntry, PhpErrorEntry, LogPair, DrupalWatchdogEntry, DrupalWatchdogStats } from '@/types/log'
 import { DEFAULT_FILTER } from '@/types/log'
 import { parseApacheLog, detectApacheLog, parseApacheLine } from '@/parsers/apache'
 import { parsePhpLog, detectPhpLog, parsePhpLine } from '@/parsers/php'
+import { parseDrupalWatchdogLog, detectDrupalWatchdogLog, parseDrupalWatchdogLine } from '@/parsers/drupalWatchdog'
 import { settings } from '@/stores/settingsStore'
 import dayjs from 'dayjs'
 
@@ -32,6 +33,7 @@ const [state, setState] = createStore<LogState>({
 function detectLogType(content: string): LogFile['logType'] {
   if (detectApacheLog(content)) return 'apache'
   if (detectPhpLog(content)) return 'php'
+  if (detectDrupalWatchdogLog(content)) return 'drupal-watchdog'
   return 'unknown'
 }
 
@@ -57,6 +59,8 @@ export async function addLogFile(filePath: string): Promise<void> {
       entries = parseApacheLog(result.content)
     } else if (logType === 'php') {
       entries = parsePhpLog(result.content)
+    } else if (logType === 'drupal-watchdog') {
+      entries = parseDrupalWatchdogLog(result.content)
     }
 
     const stats = await window.electronAPI.getFileStats(filePath)
@@ -129,6 +133,9 @@ export function initWatcherListener(): () => void {
       } else if (file.logType === 'php') {
         const e = parsePhpLine(line)
         return e ? [e] : []
+      } else if (file.logType === 'drupal-watchdog') {
+        const e = parseDrupalWatchdogLine(line)
+        return e ? [e] : []
       }
       return []
     })
@@ -159,7 +166,7 @@ export const filteredEntries = createMemo((): LogEntry[] => {
   const file = activeFile()
   if (!file) return []
 
-  const { keyword, statusCodes, levels, dateFrom, dateTo, method } = state.filter
+  const { keyword, statusCodes, levels, drupalSeverities, drupalType, dateFrom, dateTo, method } = state.filter
 
   return file.entries.filter((entry) => {
     // キーワードフィルタ
@@ -172,10 +179,18 @@ export const filteredEntries = createMemo((): LogEntry[] => {
           !entry.userAgent.toLowerCase().includes(kw)
         )
           return false
-      } else {
+      } else if (entry.type === 'php') {
         if (
           !entry.message.toLowerCase().includes(kw) &&
           !entry.file.toLowerCase().includes(kw)
+        )
+          return false
+      } else if (entry.type === 'drupal-watchdog') {
+        if (
+          !entry.message.toLowerCase().includes(kw) &&
+          !entry.watchdogType.toLowerCase().includes(kw) &&
+          !entry.requestUri.toLowerCase().includes(kw) &&
+          !entry.ip.toLowerCase().includes(kw)
         )
           return false
       }
@@ -202,6 +217,13 @@ export const filteredEntries = createMemo((): LogEntry[] => {
 
     if (entry.type === 'php' && levels.length > 0) {
       if (!levels.includes(entry.level)) return false
+    }
+
+    if (entry.type === 'drupal-watchdog') {
+      if (drupalSeverities.length > 0) {
+        if (!drupalSeverities.includes(entry.severity)) return false
+      }
+      if (drupalType && entry.watchdogType !== drupalType) return false
     }
 
     return true
@@ -309,6 +331,45 @@ export const phpStats = createMemo((): PhpStats | null => {
     topFiles: topN(fileCounts).map(([file, count]) => ({ file, count })),
     errorsPerHour: sortedHours.map(([hour, count]) => ({ hour, count })),
     recentErrors: entries.slice(-20).reverse()
+  }
+})
+
+export const drupalWatchdogStats = createMemo((): DrupalWatchdogStats | null => {
+  const file = activeFile()
+  if (!file || file.logType !== 'drupal-watchdog') return null
+
+  const entries = file.entries.filter((e): e is DrupalWatchdogEntry => e.type === 'drupal-watchdog')
+
+  const severityCounts: Record<string, number> = {}
+  const typeCounts: Record<string, number> = {}
+  const hourCounts: Record<string, number> = {}
+
+  for (const e of entries) {
+    severityCounts[e.severity] = (severityCounts[e.severity] ?? 0) + 1
+    if (e.watchdogType) {
+      typeCounts[e.watchdogType] = (typeCounts[e.watchdogType] ?? 0) + 1
+    }
+
+    if (!isNaN(e.timestamp.getTime())) {
+      const hour = dayjs(e.timestamp).format('YYYY-MM-DD HH:00')
+      hourCounts[hour] = (hourCounts[hour] ?? 0) + 1
+    }
+  }
+
+  const topN = (map: Record<string, number>, n = 10): [string, number][] =>
+    (Object.entries(map) as [string, number][])
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .slice(0, n)
+
+  const sortedHours = Object.entries(hourCounts).sort(([a], [b]) => a.localeCompare(b))
+
+  return {
+    totalEntries: entries.length,
+    severityCounts,
+    typeCounts,
+    topTypes: topN(typeCounts).map(([watchdogType, count]) => ({ watchdogType, count })),
+    entriesPerHour: sortedHours.map(([hour, count]) => ({ hour, count })),
+    recentEntries: entries.slice(-20).reverse()
   }
 })
 
