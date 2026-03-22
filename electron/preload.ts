@@ -36,7 +36,17 @@ const api = {
   },
 
   // アプリ情報
-  getVersion: (): Promise<string> => ipcRenderer.invoke('app:get-version')
+  getVersion: (): Promise<string> => ipcRenderer.invoke('app:get-version'),
+
+  // ローカルDB（パース済みログデータの永続化）
+  saveLogFile: (id: string, data: unknown): Promise<void> =>
+    ipcRenderer.invoke('db:save-log-file', id, data),
+
+  loadAllLogFiles: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('db:load-all-log-files'),
+
+  removeLogFile: (id: string): Promise<void> =>
+    ipcRenderer.invoke('db:remove-log-file', id)
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

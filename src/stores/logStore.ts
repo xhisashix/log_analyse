@@ -8,6 +8,68 @@ import { parseDrupalWatchdogLog, detectDrupalWatchdogLog, parseDrupalWatchdogLin
 import { settings } from '@/stores/settingsStore'
 import dayjs from 'dayjs'
 
+// ===== 永続化型定義 =====
+// Date オブジェクトを ISO 文字列としてシリアライズした形式
+
+type SerializedApacheEntry = Omit<ApacheLogEntry, 'timestamp'> & { timestamp: string }
+type SerializedPhpEntry = Omit<PhpErrorEntry, 'timestamp'> & { timestamp: string }
+type SerializedEntry = SerializedApacheEntry | SerializedPhpEntry
+
+interface PersistedLogFile {
+  id: string
+  path: string
+  name: string
+  logType: 'apache' | 'php' | 'unknown'
+  size: number
+  lastModified: number
+  loadedAt: number
+  savedAt: number
+  entries: SerializedEntry[]
+}
+
+// LogEntry の timestamp (Date) → ISO 文字列
+function serializeEntries(entries: LogEntry[]): SerializedEntry[] {
+  return entries.map((e) => ({ ...e, timestamp: e.timestamp.toISOString() }))
+}
+
+// ISO 文字列 → LogEntry の timestamp (Date)
+function deserializeEntries(entries: SerializedEntry[]): LogEntry[] {
+  return entries.map((e) => ({ ...e, timestamp: new Date(e.timestamp) } as LogEntry))
+}
+
+// LogFile を永続化形式に変換
+function toPersistedLogFile(file: LogFile): PersistedLogFile {
+  return {
+    id: file.id,
+    path: file.path,
+    name: file.name,
+    logType: file.logType,
+    size: file.size,
+    lastModified: file.lastModified,
+    loadedAt: file.loadedAt,
+    savedAt: Date.now(),
+    entries: serializeEntries(file.entries)
+  }
+}
+
+// 永続化形式 → LogFile（watching は常に false でリストア）
+function fromPersistedLogFile(data: PersistedLogFile): LogFile {
+  return {
+    id: data.id,
+    path: data.path,
+    name: data.name,
+    logType: data.logType,
+    size: data.size,
+    lastModified: data.lastModified,
+    watching: false,
+    entries: deserializeEntries(data.entries),
+    loadedAt: data.loadedAt
+  }
+}
+
+// 保存の二重実行を防ぐデバウンスタイマー（fileId → タイマーID）
+const saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
 interface LogState {
   files: LogFile[]
   activeFileId: string | null
@@ -82,6 +144,12 @@ export async function addLogFile(filePath: string): Promise<void> {
     ])
 
     if (!state.activeFileId) setState('activeFileId', id)
+
+    // パース済みデータをローカルDBに保存
+    const savedFile = state.files.find((f) => f.id === id)
+    if (savedFile) {
+      await window.electronAPI.saveLogFile(id, toPersistedLogFile(savedFile))
+    }
   } catch (err) {
     setState('error', err instanceof Error ? err.message : String(err))
   } finally {
@@ -89,7 +157,7 @@ export async function addLogFile(filePath: string): Promise<void> {
   }
 }
 
-export function removeLogFile(id: string): void {
+export async function removeLogFile(id: string): Promise<void> {
   const file = state.files.find((f) => f.id === id)
   if (file?.watching) {
     window.electronAPI.stopWatcher(file.path)
@@ -98,10 +166,36 @@ export function removeLogFile(id: string): void {
   if (state.activeFileId === id) {
     setState('activeFileId', state.files[0]?.id ?? null)
   }
+  // ローカルDBからも削除
+  try {
+    await window.electronAPI.removeLogFile(id)
+  } catch (err) {
+    console.error('[db] ログファイルの削除に失敗:', err)
+  }
 }
 
 export function setActiveFile(id: string): void {
   setState('activeFileId', id)
+}
+
+// ===== 起動時の永続化データ復元 =====
+
+// アプリ起動時にローカルDBから保存済みログファイルを復元する
+export async function loadPersistedFiles(): Promise<void> {
+  try {
+    const rawList = await window.electronAPI.loadAllLogFiles()
+    for (const raw of rawList) {
+      const data = raw as PersistedLogFile
+      if (!data.id || state.files.find((f) => f.id === data.id)) continue
+      const file = fromPersistedLogFile(data)
+      setState('files', (files) => [...files, file])
+    }
+    if (!state.activeFileId && state.files.length > 0) {
+      setState('activeFileId', state.files[0].id)
+    }
+  } catch (err) {
+    console.error('[db] 永続化データの読み込みに失敗:', err)
+  }
 }
 
 // ===== リアルタイム監視 =====
@@ -142,6 +236,22 @@ export function initWatcherListener(): () => void {
 
     if (newEntries.length > 0) {
       setState('files', (f) => f.id === id, 'entries', (entries) => [...entries, ...newEntries])
+
+      // 追記されたエントリをデバウンスして DB に保存（2秒以内の連続更新をまとめる）
+      const prev = saveTimers.get(id)
+      if (prev !== undefined) clearTimeout(prev)
+      saveTimers.set(
+        id,
+        setTimeout(() => {
+          saveTimers.delete(id)
+          const updated = state.files.find((f) => f.id === id)
+          if (updated) {
+            window.electronAPI.saveLogFile(id, toPersistedLogFile(updated)).catch((err: unknown) => {
+              console.error('[db] ウォッチャー更新後の保存に失敗:', err)
+            })
+          }
+        }, 2000)
+      )
     }
   })
 }

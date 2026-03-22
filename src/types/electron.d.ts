@@ -23,6 +23,9 @@ declare global {
         callback: (event: { filePath: string; newLines: string[] }) => void
       ) => () => void
       getVersion: () => Promise<string>
+      saveLogFile: (id: string, data: unknown) => Promise<void>
+      loadAllLogFiles: () => Promise<unknown[]>
+      removeLogFile: (id: string) => Promise<void>
     }
   }
 }
