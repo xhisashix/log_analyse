@@ -52,6 +52,7 @@ export interface DrupalWatchdogEntry {
   raw: string
   timestamp: Date
   siteName: string
+  domain: string
   ip: string
   requestUri: string
   referer: string
