@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import { setupFileHandlers } from './handlers/fileHandler'
 import { setupWatcherHandlers, cleanupWatchers } from './handlers/watcherHandler'
+import { setupDbHandlers } from './handlers/dbHandler'
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -41,6 +42,7 @@ function createWindow(): BrowserWindow {
 app.whenReady().then(() => {
   setupFileHandlers()
   setupWatcherHandlers()
+  setupDbHandlers()
   createWindow()
 
   app.on('activate', () => {

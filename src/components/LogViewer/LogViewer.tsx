@@ -1,5 +1,5 @@
 import {
-  Component, For, Show
+  Component, For, Show, createSignal
 } from 'solid-js'
 import { createVirtualizer } from '@tanstack/solid-virtual'
 import {
@@ -14,6 +14,7 @@ import {
 import { settings, updateSettings } from '@/stores/settingsStore'
 import type { ApacheLogEntry, PhpErrorEntry, PhpErrorLevel, DrupalWatchdogEntry, DrupalWatchdogSeverity, LogEntry } from '@/types/log'
 import { formatTimestamp } from '@/utils/formatTime'
+import dayjs from 'dayjs'
 
 /** ISO 文字列 → datetime-local input 用のローカル時刻文字列 (YYYY-MM-DDTHH:mm) */
 function isoToLocal(iso: string): string {
@@ -217,14 +218,20 @@ const DrupalWatchdogRow: Component<{ entry: DrupalWatchdogEntry }> = (props) => 
 
 // ===== メインビュー（仮想スクロール）=====
 const LogViewer: Component = () => {
-  let scrollRef: HTMLDivElement | undefined
+  /*
+   * スクロールコンテナは Show の外側に常に DOM へ存在させる。
+   * createVirtualizer の onMount 時に scrollRef が確定している必要があるため、
+   * Show で囲んで後から DOM に追加すると observeElementRect が設定されず
+   * virtualizer が機能しない（何も表示されない）。
+   */
+  let scrollRef!: HTMLDivElement
   const entries = displayEntries
   const cap = displayCap
   const allFiltered = filteredEntries
 
   const virtualizer = createVirtualizer({
     get count() { return entries().length },
-    getScrollElement: () => scrollRef ?? null,
+    getScrollElement: () => scrollRef,
     estimateSize: () => 28,
     overscan: 20
   })
@@ -263,14 +270,16 @@ const LogViewer: Component = () => {
       </Show>
 
       {/* 件数バー */}
-      <div class="px-3 py-0.5 text-[10px] text-gray-500 bg-gray-850 border-b border-gray-700 flex items-center gap-2">
-        <span>
-          {entries().length.toLocaleString()} 件
-          <Show when={allFiltered().length !== activeFile()?.entries.length}>
-            {' '}/ {activeFile()?.entries.length.toLocaleString()} 件中
-          </Show>
-        </span>
-      </div>
+      <Show when={activeFile()}>
+        <div class="px-3 py-0.5 text-[10px] text-gray-500 bg-gray-850 border-b border-gray-700 flex items-center gap-2">
+          <span>
+            {entries().length.toLocaleString()} 件
+            <Show when={allFiltered().length !== activeFile()?.entries.length}>
+              {' '}/ {activeFile()?.entries.length.toLocaleString()} 件中
+            </Show>
+          </span>
+        </div>
+      </Show>
 
       {/* 上限超過警告バナー */}
       <Show when={cap().capped}>
@@ -311,15 +320,16 @@ const LogViewer: Component = () => {
         </div>
       </Show>
 
-      <Show
-        when={activeFile()}
-        fallback={
-          <div class="flex-1 flex items-center justify-center text-gray-600 text-sm">
-            左のファイルリストからログを選択してください
-          </div>
-        }
-      >
-        <div ref={scrollRef} class="flex-1 overflow-auto">
+      {/* スクロールコンテナ：Show の外側に常時 DOM へ配置 */}
+      <div ref={scrollRef!} class="flex-1 overflow-auto">
+        <Show
+          when={activeFile()}
+          fallback={
+            <div class="flex h-full items-center justify-center text-gray-600 text-sm">
+              左のファイルリストからログを選択してください
+            </div>
+          }
+        >
           <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
             <For each={virtualizer.getVirtualItems()}>
               {(virtualRow) => {
@@ -349,8 +359,8 @@ const LogViewer: Component = () => {
               }}
             </For>
           </div>
-        </div>
-      </Show>
+        </Show>
+      </div>
     </div>
   )
 }
