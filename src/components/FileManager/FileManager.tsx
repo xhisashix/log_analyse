@@ -18,7 +18,7 @@ const FileManager: Component = () => {
 
   return (
     <aside class="w-64 bg-gray-900 text-gray-100 flex flex-col h-full border-r border-gray-700">
-      <div class="p-3 border-b border-gray-700 flex items-center justify-between">
+      <div class="px-3 pt-8 pb-3 border-b border-gray-700 flex items-center justify-between">
         <span class="text-sm font-semibold tracking-wide uppercase text-gray-400">Files</span>
         <button
           onClick={handleOpenDialog}
@@ -50,9 +50,8 @@ const FileManager: Component = () => {
             {(file) => (
               <div
                 onClick={() => setActiveFile(file.id)}
-                class={`group flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-gray-800 transition-colors ${
-                  logState.activeFileId === file.id ? 'bg-gray-800 border-l-2 border-blue-500' : ''
-                }`}
+                class={`group flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-gray-800 transition-colors ${logState.activeFileId === file.id ? 'bg-gray-800 border-l-2 border-blue-500' : ''
+                  }`}
               >
                 <div class="flex-1 min-w-0">
                   <div class="text-xs font-medium truncate" title={file.path}>
@@ -60,15 +59,14 @@ const FileManager: Component = () => {
                   </div>
                   <div class="flex items-center gap-1 mt-0.5">
                     <span
-                      class={`text-[10px] px-1 rounded ${
-                        file.logType === 'apache'
+                      class={`text-[10px] px-1 rounded ${file.logType === 'apache'
                           ? 'bg-green-800 text-green-200'
                           : file.logType === 'php'
-                          ? 'bg-purple-800 text-purple-200'
-                          : file.logType === 'drupal-watchdog'
-                          ? 'bg-amber-800 text-amber-200'
-                          : 'bg-gray-700 text-gray-300'
-                      }`}
+                            ? 'bg-purple-800 text-purple-200'
+                            : file.logType === 'drupal-watchdog'
+                              ? 'bg-amber-800 text-amber-200'
+                              : 'bg-gray-700 text-gray-300'
+                        }`}
                     >
                       {file.logType}
                     </span>
@@ -81,11 +79,10 @@ const FileManager: Component = () => {
                 <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleWatcher(file.id) }}
-                    class={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
-                      file.watching
+                    class={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${file.watching
                         ? 'bg-orange-600 hover:bg-orange-500 text-white'
                         : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                    }`}
+                      }`}
                     title={file.watching ? '監視停止' : '監視開始'}
                   >
                     {file.watching ? '●' : '○'}
