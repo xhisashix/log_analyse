@@ -1,5 +1,5 @@
 import {
-  Component, For, Show, createSignal
+  Component, For, Show
 } from 'solid-js'
 import { createVirtualizer } from '@tanstack/solid-virtual'
 import {
@@ -9,11 +9,13 @@ import {
   setFilter,
   resetFilter,
   activeFile,
-  logState
+  logState,
+  setSqlMode
 } from '@/stores/logStore'
 import { settings, updateSettings } from '@/stores/settingsStore'
 import type { ApacheLogEntry, PhpErrorEntry, PhpErrorLevel, DrupalWatchdogEntry, DrupalWatchdogSeverity, LogEntry } from '@/types/log'
 import { formatTimestamp } from '@/utils/formatTime'
+import SqlQueryBar from './SqlQueryBar'
 import dayjs from 'dayjs'
 
 /** ISO 文字列 → datetime-local input 用のローカル時刻文字列 (YYYY-MM-DDTHH:mm) */
@@ -238,7 +240,34 @@ const LogViewer: Component = () => {
 
   return (
     <div class="flex flex-col h-full bg-gray-900 text-gray-100">
-      <FilterBar />
+      {/* タブ: フィルター / SQL クエリー */}
+      <div class="flex items-center border-b border-gray-700 bg-gray-800">
+        <button
+          onClick={() => setSqlMode(false)}
+          class={`px-4 py-1.5 text-xs font-medium transition-colors border-b-2 ${
+            !logState.sqlMode
+              ? 'text-blue-400 border-blue-400 bg-gray-800'
+              : 'text-gray-400 border-transparent hover:text-gray-200'
+          }`}
+        >
+          フィルター
+        </button>
+        <button
+          onClick={() => setSqlMode(true)}
+          class={`px-4 py-1.5 text-xs font-medium transition-colors border-b-2 ${
+            logState.sqlMode
+              ? 'text-blue-400 border-blue-400 bg-gray-800'
+              : 'text-gray-400 border-transparent hover:text-gray-200'
+          }`}
+        >
+          SQL クエリー
+        </button>
+      </div>
+
+      {/* フィルターバー / SQLクエリーバー */}
+      <Show when={!logState.sqlMode} fallback={<SqlQueryBar />}>
+        <FilterBar />
+      </Show>
 
       {/* ヘッダー */}
       <Show when={activeFile()?.logType === 'apache'}>

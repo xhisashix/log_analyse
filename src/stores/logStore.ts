@@ -6,6 +6,8 @@ import { parseApacheLog, detectApacheLog, parseApacheLine } from '@/parsers/apac
 import { parsePhpLog, detectPhpLog, parsePhpLine } from '@/parsers/php'
 import { parseDrupalWatchdogLog, detectDrupalWatchdogLog, parseDrupalWatchdogLine } from '@/parsers/drupalWatchdog'
 import { settings } from '@/stores/settingsStore'
+import { executeSql } from '@/utils/sqlQuery'
+import type { SqlQueryResult } from '@/utils/sqlQuery'
 import dayjs from 'dayjs'
 
 // ===== 永続化型定義 =====
@@ -13,13 +15,14 @@ import dayjs from 'dayjs'
 
 type SerializedApacheEntry = Omit<ApacheLogEntry, 'timestamp'> & { timestamp: string }
 type SerializedPhpEntry = Omit<PhpErrorEntry, 'timestamp'> & { timestamp: string }
-type SerializedEntry = SerializedApacheEntry | SerializedPhpEntry
+type SerializedDrupalEntry = Omit<DrupalWatchdogEntry, 'timestamp'> & { timestamp: string }
+type SerializedEntry = SerializedApacheEntry | SerializedPhpEntry | SerializedDrupalEntry
 
 interface PersistedLogFile {
   id: string
   path: string
   name: string
-  logType: 'apache' | 'php' | 'unknown'
+  logType: 'apache' | 'php' | 'drupal-watchdog' | 'unknown'
   size: number
   lastModified: number
   loadedAt: number
@@ -76,6 +79,8 @@ interface LogState {
   pairs: LogPair[]
   activePairId: string | null
   filter: LogFilter
+  sqlMode: boolean
+  sqlQuery: string
   loading: boolean
   error: string | null
 }
@@ -86,6 +91,8 @@ const [state, setState] = createStore<LogState>({
   pairs: [],
   activePairId: null,
   filter: { ...DEFAULT_FILTER },
+  sqlMode: false,
+  sqlQuery: '',
   loading: false,
   error: null
 })
@@ -266,6 +273,16 @@ export function resetFilter(): void {
   setState('filter', { ...DEFAULT_FILTER })
 }
 
+// ===== SQL モード =====
+
+export function setSqlMode(enabled: boolean): void {
+  setState('sqlMode', enabled)
+}
+
+export function setSqlQuery(query: string): void {
+  setState('sqlQuery', query)
+}
+
 // ===== セレクター =====
 
 export const activeFile = createMemo(() =>
@@ -340,13 +357,27 @@ export const filteredEntries = createMemo((): LogEntry[] => {
   })
 })
 
+// ===== SQL フィルタ =====
+
+export const sqlResult = createMemo((): SqlQueryResult => {
+  if (!state.sqlMode || !state.sqlQuery.trim()) {
+    return { entries: [], error: null }
+  }
+  const file = activeFile()
+  if (!file) return { entries: [], error: null }
+  return executeSql(state.sqlQuery, file.entries)
+})
+
+export const sqlError = createMemo((): string | null => sqlResult().error)
+
 /**
  * 表示用エントリ。maxEntriesDisplay が 0 の場合は全件、
  * それ以外は末尾（最新）N 件に絞る。
  * 統計計算は filteredEntries（全件）を使うため影響なし。
+ * SQL モード時は sqlResult を使用。
  */
 export const displayEntries = createMemo((): LogEntry[] => {
-  const entries = filteredEntries()
+  const entries = state.sqlMode ? sqlResult().entries : filteredEntries()
   const limit = settings.maxEntriesDisplay
   if (limit <= 0 || entries.length <= limit) return entries
   // 末尾（最新ログ）を優先して表示
@@ -355,7 +386,7 @@ export const displayEntries = createMemo((): LogEntry[] => {
 
 /** 上限カット中かどうか、およびカットされた件数 */
 export const displayCap = createMemo(() => {
-  const total = filteredEntries().length
+  const total = state.sqlMode ? sqlResult().entries.length : filteredEntries().length
   const limit = settings.maxEntriesDisplay
   if (limit <= 0 || total <= limit) return { capped: false, total, limit, hidden: 0 }
   return { capped: true, total, limit, hidden: total - limit }
