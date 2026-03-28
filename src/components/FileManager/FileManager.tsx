@@ -1,4 +1,4 @@
-import { Component, For, Show } from 'solid-js'
+import { Component, createSignal, For, Show } from 'solid-js'
 import {
   logState,
   addLogFile,
@@ -8,6 +8,27 @@ import {
 } from '@/stores/logStore'
 
 const FileManager: Component = () => {
+  const [sidebarWidth, setSidebarWidth] = createSignal(256)
+
+  function handleResizeStart(e: MouseEvent) {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = sidebarWidth()
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    const onMove = (ev: MouseEvent) => {
+      setSidebarWidth(Math.max(160, Math.min(480, startW + (ev.clientX - startX))))
+    }
+    const onUp = () => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
+
   async function handleOpenDialog() {
     const result = await window.electronAPI.openFileDialog()
     if (result.canceled) return
@@ -17,7 +38,10 @@ const FileManager: Component = () => {
   }
 
   return (
-    <aside class="w-64 bg-gray-900 text-gray-100 flex flex-col h-full border-r border-gray-700">
+    <aside
+      class="bg-gray-900 text-gray-100 flex flex-col h-full border-r border-gray-700 relative shrink-0"
+      style={{ width: `${sidebarWidth()}px` }}
+    >
       <div class="px-3 pt-8 pb-3 border-b border-gray-700 flex items-center justify-between">
         <span class="text-sm font-semibold tracking-wide uppercase text-gray-400">Files</span>
         <button
@@ -100,6 +124,12 @@ const FileManager: Component = () => {
           </For>
         </Show>
       </div>
+
+      {/* リサイズハンドル */}
+      <div
+        onMouseDown={handleResizeStart}
+        class="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500/50 transition-colors"
+      />
     </aside>
   )
 }
