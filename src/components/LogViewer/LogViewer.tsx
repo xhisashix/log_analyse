@@ -336,12 +336,13 @@ const LogViewer: Component = () => {
                 const entry = (): LogEntry => entries()[virtualRow.index]
                 return (
                   <div
+                    data-index={virtualRow.index}
+                    ref={(el) => queueMicrotask(() => virtualizer.measureElement(el))}
                     style={{
                       position: 'absolute',
                       top: 0,
                       left: 0,
                       width: '100%',
-                      height: `${virtualRow.size}px`,
                       transform: `translateY(${virtualRow.start}px)`
                     }}
                   >
