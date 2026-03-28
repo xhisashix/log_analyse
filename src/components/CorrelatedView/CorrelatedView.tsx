@@ -59,7 +59,7 @@ const PairCreatePanel: Component = () => {
           <select
             value={selectedApacheId()}
             onChange={(e) => setSelectedApacheId(e.currentTarget.value)}
-            class="flex-1 text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:outline-none focus:border-blue-500"
+            class="flex-1 min-w-0 text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:outline-none focus:border-blue-500"
           >
             <option value="">Apacheファイルを選択...</option>
             <For each={apacheFiles()}>
@@ -73,7 +73,7 @@ const PairCreatePanel: Component = () => {
           <select
             value={selectedPhpId()}
             onChange={(e) => setSelectedPhpId(e.currentTarget.value)}
-            class="flex-1 text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:outline-none focus:border-blue-500"
+            class="flex-1 min-w-0 text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:outline-none focus:border-blue-500"
           >
             <option value="">PHPファイルを選択...</option>
             <For each={phpFiles()}>
@@ -94,8 +94,33 @@ const PairCreatePanel: Component = () => {
 }
 
 // ===== ペア選択サイドバー =====
-const PairSidebar: Component = () => (
-  <div class="w-56 bg-gray-900 border-r border-gray-700 flex flex-col h-full shrink-0">
+const PairSidebar: Component = () => {
+  const [sidebarWidth, setSidebarWidth] = createSignal(224)
+
+  function handleResizeStart(e: MouseEvent) {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = sidebarWidth()
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    const onMove = (ev: MouseEvent) => {
+      setSidebarWidth(Math.max(160, Math.min(480, startW + (ev.clientX - startX))))
+    }
+    const onUp = () => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
+
+  return (
+  <div
+    class="bg-gray-900 border-r border-gray-700 flex flex-col h-full shrink-0 relative"
+    style={{ width: `${sidebarWidth()}px` }}
+  >
     <div class="p-3 border-b border-gray-700 flex items-center justify-between">
       <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">ペア一覧</span>
     </div>
@@ -130,8 +155,15 @@ const PairSidebar: Component = () => (
         </For>
       </Show>
     </div>
+
+    {/* リサイズハンドル */}
+    <div
+      onMouseDown={handleResizeStart}
+      class="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500/50 transition-colors"
+    />
   </div>
-)
+  )
+}
 
 // ===== PHP エラー行 =====
 const PhpErrorRow: Component<{
