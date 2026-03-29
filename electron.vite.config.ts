@@ -9,7 +9,7 @@ export default defineConfig({
         entry: path.resolve(__dirname, 'electron/main.ts')
       },
       rollupOptions: {
-        external: ['chokidar', 'electron']
+        external: ['chokidar', 'electron', 'better-sqlite3']
       }
     },
     resolve: {
